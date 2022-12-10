@@ -26,8 +26,7 @@ public record Content(String id, String title, ContentType type, String descript
                     tokens[DESCRIPTION], Integer.parseInt(tokens[RELEASE_YEAR]), Integer.parseInt(tokens[RUNTIME]),
                     readGenres(tokens[GENRES]), Integer.parseInt(tokens[SEASONS]), tokens[IMDB_ID],
                     Double.parseDouble(tokens[IMDB_SCORE]), Double.parseDouble(tokens[IMDB_VOTES]));
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             return null;
         }
     }

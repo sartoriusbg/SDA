@@ -4,14 +4,12 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.*;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class NetflixRecommender {
 
     private List<Content> content;
+
     /**
      * Loads the dataset from the given {@code reader}.
      *
@@ -20,12 +18,22 @@ public class NetflixRecommender {
     public NetflixRecommender(Reader reader) {
         content = new LinkedList<>();
         String line = "";
-        try(BufferedReader br = new BufferedReader(reader)) {
+        try (BufferedReader br = new BufferedReader(reader)) {
             content = br.lines().map(Content::of).filter(c -> c != null).toList();
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             throw new IllegalStateException("A problem occurred while reading from the file", e);
         }
+    }
+
+    /**
+     * Returns a list of all unique genres of movies and shows in the dataset in undefined order.
+     * If the dataset is empty, returns an empty List.
+     *
+     * @return the list of all genres
+     */
+    private static List<String> add(List first, List second) {
+        first.addAll(second);
+        return first;
     }
 
     /**
@@ -38,20 +46,10 @@ public class NetflixRecommender {
         return content;
     }
 
-    /**
-     * Returns a list of all unique genres of movies and shows in the dataset in undefined order.
-     * If the dataset is empty, returns an empty List.
-     *
-     * @return the list of all genres
-     */
-    private static List<String> add (List first, List second) {
-        first.addAll(second);
-        return first;
-    }
     public List<String> getAllGenres() {
-        return  content.stream()
+        return content.stream()
                 .map(Content::genres)
-                .reduce(new LinkedList<>(), (current, next) -> add(current,next)).stream()
+                .reduce(new LinkedList<>(), (current, next) -> add(current, next)).stream()
                 .distinct().toList();
 
     }
@@ -74,25 +72,16 @@ public class NetflixRecommender {
      * @return a Map with key: a ContentType and value: the set of movies or shows on the dataset, in undefined order.
      */
 
-    private Map<ContentType, Set<Content>> add(Map<ContentType, Set<Content>> map, Content toAdd) {
-        if(toAdd.type()==ContentType.MOVIE){
-            map.get(ContentType.MOVIE).add(toAdd);
-        }
-        else {
-            map.get(ContentType.SHOW).add(toAdd);
-        }
-        return map;
-    }
+
     public Map<ContentType, Set<Content>> groupContentByType() {
-        EnumMap<ContentType, Set<Content>> res = new EnumMap<>(ContentType.class);
-        return res;
+        return content.stream().collect(Collectors.groupingBy(Content::type, Collectors.toSet()));
     }
 
     /**
      * Returns the top N movies and shows sorted by weighed IMDB rating in descending order.
      * If there are fewer movies and shows than {@code n} in the dataset, return all of them.
      * If {@code n} is zero, returns an empty list.
-     *
+     * <p>
      * The weighed rating is calculated by the following formula:
      * Weighted Rating (WR) = (v ÷ (v + m)) × R + (m ÷ (v + m)) × C
      * where
@@ -100,7 +89,7 @@ public class NetflixRecommender {
      * C is the average rating of content across the dataset
      * v is the number of votes for a content
      * m is a tunable parameter: sensitivity threshold. In our algorithm, it's a constant equal to 10_000.
-     *
+     * <p>
      * Check https://stackoverflow.com/questions/1411199/what-is-a-better-way-to-sort-by-a-5-star-rating for details.
      *
      * @param n the number of the top-rated movies and shows to return
@@ -108,7 +97,8 @@ public class NetflixRecommender {
      * @throws IllegalArgumentException if {@code n} is negative.
      */
     public List<Content> getTopNRatedContent(int n) {
-       return content.stream().sorted(new ContentComparator(content.stream().mapToDouble(Content::imdbScore).average().getAsDouble())).limit(n).toList();
+        return content.stream().sorted(new ContentComparator(content.stream().mapToDouble(Content::imdbScore).average()
+                .getAsDouble())).limit(n).toList();
     }
 
     /**
@@ -123,7 +113,8 @@ public class NetflixRecommender {
      */
 
     public List<Content> getSimilarContent(Content content) {
-       return this.content.stream().filter(c -> c.type() == content.type()).sorted(new SimComparator(content)).toList();
+        return this.content.stream().filter(c -> c.type() == content.type()).sorted(new SimComparator(content))
+                .toList();
     }
 
     /**
@@ -132,11 +123,13 @@ public class NetflixRecommender {
      * @param keywords the keywords to search for
      * @return an unmodifiable set of movies and shows whose description contains all specified keywords.
      */
-    private boolean containsKWords (Content c, String... keywords) {
-        return Arrays.stream(keywords).allMatch(curr ->c.description().contains(curr));
+    private boolean containsKWords(Content c, String... keywords) {
+        return Arrays.stream(keywords).allMatch(curr -> c.description().contains(curr));
     }
+
     public Set<Content> getContentByKeywords(String... keywords) {
-        return content.stream().filter(c -> containsKWords(c,keywords)).collect(Collectors.toUnmodifiableSet());
+        return content.stream().filter(c -> containsKWords(c, keywords)).collect(Collectors.toUnmodifiableSet());
     }
+
 
 }
